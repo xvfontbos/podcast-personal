@@ -397,7 +397,7 @@
         <div id="progress-bar"></div>
       </div>
       <div id="controls-row">
-        <button id="play-stop-btn" onclick="togglePlay()" disabled>▶ Reproduir</button>
+        <button id="play-stop-btn" onclick="togglePlay()" disabled>Reproduir</button>
         <div id="skip-btns">
           <button onclick="skip(-10)">« 10s</button>
           <button onclick="skip(10)">10s »</button>
@@ -626,7 +626,7 @@ function selectEpisode(ep, el) {
   nowStatus.textContent = '';
   playBtn.disabled = false;
   isPlaying = false;
-  playBtn.textContent = '▶ Reproduir';
+  playBtn.textContent = 'Reproduir';
   progBar.style.width = '0%';
   timDisp.textContent = '0:00 / 0:00';
 }
@@ -637,12 +637,12 @@ function togglePlay() {
   if (isPlaying) {
     audio.pause();
     isPlaying = false;
-    playBtn.textContent = '▶ Reproduir';
+    playBtn.textContent = 'Reproduir';
     nowStatus.textContent = 'En pausa';
   } else {
     audio.play().then(() => {
       isPlaying = true;
-      playBtn.textContent = '⏸ Pausa';
+      playBtn.textContent = 'Pausa';
       nowStatus.textContent = 'Reproduint';
     }).catch(() => {
       nowStatus.textContent = 'Error de connexió';
@@ -676,7 +676,7 @@ audio.addEventListener('timeupdate', () => {
 
 audio.addEventListener('ended', () => {
   isPlaying = false;
-  playBtn.textContent = '▶ Reproduir';
+  playBtn.textContent = 'Reproduir';
   nowStatus.textContent = 'Acabat';
 });
 
