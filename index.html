@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Podcast personal</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#111111">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Georgia, serif;
+    background: #1a1a1a;
+    color: #e0d8cc;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    transition: background 0.3s, color 0.3s;
+  }
+
+  /* ── TOOLBAR ── */
+  #toolbar {
+    background: #111;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #333;
+    flex-shrink: 0;
+  }
+
+  #toolbar button {
+    height: 32px;
+    padding: 0 12px;
+    font-size: 0.85rem;
+    font-family: sans-serif;
+    border-radius: 4px;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid #444;
+    color: #aaa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #toolbar button:hover { color: #eee; border-color: #888; background: rgba(255,255,255,0.05); }
+  #toolbar label {
+    height: 32px;
+    padding: 0 12px;
+    font-size: 0.85rem;
+    font-family: sans-serif;
+    border-radius: 4px;
+    cursor: pointer;
+    background: transparent;
+    border: 1px solid #444;
+    color: #aaa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+  }
+  #toolbar label:hover { color: #eee; border-color: #888; background: rgba(255,255,255,0.05); }
+  #app-title { flex: 1; font-size: 0.9rem; color: #777; font-family: sans-serif; }
+
+  /* ── LAYOUT ── */
+  #main { display: flex; flex: 1; overflow: hidden; }
+
+  .side-panel {
+    width: 250px;
+    background: #111;
+    border-right: 1px solid #333;
+    border-left: 1px solid #333;
+    overflow-y: auto;
+    flex-shrink: 0;
+  }
+
+  /* Panell esquerre: text alineat a la dreta */
+  .side-panel:first-child .station-item {
+    justify-content: flex-end;
+    text-align: right;
+    border-left: none;
+    border-right: 3px solid transparent;
+  }
+  .side-panel:first-child .station-item.active { border-right-color: #c8a97e; border-left: none; }
+  .side-panel:first-child .list-section h3 { text-align: right; }
+  .side-panel:first-child .station-item span { text-align: right; }
+
+  /* ── ÀREA CENTRAL ── */
+  #player-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── LLISTA D'EPISODIS ── */
+  #episodes-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+  }
+
+  #episodes-placeholder {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: #444;
+    font-family: sans-serif;
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 20px;
+  }
+
+  #episodes-list { list-style: none; }
+
+  .episode-item {
+    padding: 12px 20px;
+    border-bottom: 1px solid #222;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .episode-item:hover { background: #1e1e1e; }
+  .episode-item.active { background: #1e1e1e; border-left: 3px solid #c8a97e; padding-left: 17px; }
+
+  .ep-title {
+    font-size: 0.85rem;
+    font-family: sans-serif;
+    color: #ddd;
+    line-height: 1.4;
+  }
+  .episode-item.active .ep-title { color: #c8a97e; }
+
+  .ep-date {
+    font-size: 0.72rem;
+    color: #555;
+    font-family: sans-serif;
+  }
+
+  .ep-duration {
+    font-size: 0.72rem;
+    color: #555;
+    font-family: sans-serif;
+  }
+
+  /* ── REPRODUCTOR INFERIOR ── */
+  #player-bottom {
+    background: #111;
+    border-top: 1px solid #333;
+    padding: 14px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  #now-name {
+    font-size: 0.88rem;
+    color: #c8a97e;
+    font-family: sans-serif;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 1.2em;
+  }
+
+  #now-status {
+    font-size: 0.75rem;
+    color: #777;
+    font-family: sans-serif;
+    min-height: 1em;
+  }
+
+  .loading-text {
+    animation: pulse 1.5s infinite ease-in-out;
+    color: #c8a97e !important;
+  }
+  @keyframes pulse {
+    0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; }
+  }
+
+  /* Barra de progrés */
+  #progress-wrap {
+    position: relative;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+    cursor: pointer;
+  }
+  #progress-bar {
+    height: 100%;
+    background: #c8a97e;
+    border-radius: 2px;
+    width: 0%;
+    pointer-events: none;
+  }
+  #progress-wrap:hover { height: 6px; }
+
+  #controls-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  #play-stop-btn {
+    background: transparent;
+    border: 1px solid #c8a97e;
+    color: #c8a97e;
+    width: 120px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: sans-serif;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+  #play-stop-btn:hover:not(:disabled) { background: rgba(200,169,126,0.15); }
+  #play-stop-btn:disabled { border-color: #444; color: #444; }
+
+  #skip-btns { display: flex; gap: 6px; }
+  #skip-btns button {
+    background: transparent;
+    border: 1px solid #444;
+    color: #aaa;
+    padding: 0 10px;
+    height: 36px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: sans-serif;
+    font-size: 0.78rem;
+  }
+  #skip-btns button:hover { color: #eee; border-color: #888; }
+
+  #time-display {
+    font-size: 0.75rem;
+    color: #666;
+    font-family: sans-serif;
+    white-space: nowrap;
+    margin-left: auto;
+  }
+
+  #volume-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #777;
+    font-family: sans-serif;
+    font-size: 0.78rem;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 80px;
+    height: 4px;
+    background: #333;
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #c8a97e;
+  }
+
+  /* ── LLISTES LATERALS ── */
+  .list-section h3 {
+    padding: 12px 14px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    color: #555;
+    font-family: sans-serif;
+    border-bottom: 1px solid #1e1e1e;
+  }
+  .station-item {
+    padding: 10px 14px;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    font-family: sans-serif;
+    font-size: 0.85rem;
+    color: #ccc;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .station-item span { flex: 1; text-align: left; }
+  .station-item:hover { background: #1a1a1a; }
+  .station-item.active { border-left-color: #c8a97e; background: #1a1a1a; color: #c8a97e; }
+  .s-del { color: #777; background: none; border: none; cursor: pointer; font-size: 0.9rem; opacity: 0.3; }
+  .station-item:hover .s-del { opacity: 1; }
+  .s-del:hover { color: #f44; }
+
+  /* Botó de favorit */
+  .s-fav {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: #555;
+    opacity: 0;
+    padding: 0 2px;
+  }
+  .station-item:hover .s-fav { opacity: 1; }
+  .s-fav.active { color: #c8a97e; opacity: 1; }
+
+  /* ── DIÀLEGS ── */
+  #overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 10; }
+  #add-dialog {
+    display: none; position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    background: #1a1a1a; padding: 25px; border: 1px solid #444;
+    border-radius: 8px; z-index: 11; width: 320px;
+  }
+  #add-dialog h4 { margin-bottom: 15px; font-family: sans-serif; color: #e0d8cc; font-size: 0.9rem; }
+  #add-dialog input {
+    width: 100%; margin-bottom: 10px; padding: 8px;
+    background: #111; border: 1px solid #444; color: #eee;
+    border-radius: 4px; outline: none; font-family: sans-serif; font-size: 0.85rem;
+  }
+  #add-dialog input:focus { border-color: #c8a97e; }
+  #add-dialog input::placeholder { color: #555; }
+
+  /* TEMA CLAR */
+  body.light { background: #f5f0e8; color: #222; }
+  body.light #toolbar, body.light .side-panel, body.light #player-bottom { background: #e8e0d0; border-color: #ccc; }
+  body.light .episode-item { border-color: #ddd; }
+  body.light .episode-item:hover, body.light .episode-item.active { background: #ddd8cc; }
+  body.light .ep-title { color: #333; }
+  body.light #now-name { color: #c8a97e; }
+  body.light #add-dialog { background: #f0ece4; border-color: #ccc; }
+  body.light #add-dialog input { background: #fff; border-color: #bbb; color: #222; }
+  body.light #progress-wrap { background: #ccc; }
+  body.light input[type="range"] { background: #ccc; }
+</style>
+</head>
+<body>
+
+<div id="toolbar">
+  <span id="app-title">XVI Podcasts</span>
+  <button id="theme-btn" onclick="toggleTheme()" title="Canviar tema">☀</button>
+  <button onclick="showAddDialog()" title="Afegir podcast">+ Afegir</button>
+  <button onclick="openGlobalEdit()" title="Editar">✎</button>
+  <button onclick="toggleIOMenu()" title="Exportar / Importar" id="io-btn">⇅</button>
+  <div id="io-menu" style="display:none; position:fixed; background:#1a1a1a; border:1px solid #444; border-radius:4px; padding:4px; z-index:200; flex-direction:column; gap:4px;">
+    <button onclick="exportCSV(); toggleIOMenu()" title="Exportar">Exportar</button>
+    <label for="import-input" onclick="toggleIOMenu()" title="Importar">Importar</label>
+  </div>
+  <input type="file" id="import-input" accept=".csv,.txt" style="display:none" onchange="importCSV(this)">
+  <button onclick="toggleFullscreen()" title="Pantalla completa">⛶ Pantalla completa</button>
+</div>
+
+<div id="overlay" onclick="hideAddDialog()"></div>
+<div id="add-dialog">
+  <h4 id="dialog-title">Nou podcast</h4>
+  <input type="text" id="add-name" placeholder="Nom del podcast">
+  <input type="text" id="add-url" placeholder="URL del feed RSS">
+  <div style="display:flex; gap:10px; margin-top:10px;">
+    <button onclick="saveStation()" style="flex:1; padding:10px; background:#c8a97e; border:none; border-radius:4px; cursor:pointer; font-family:sans-serif;">Guardar</button>
+    <button onclick="hideAddDialog()" style="flex:1; padding:10px; background:#333; color:#ccc; border:none; border-radius:4px; font-family:sans-serif; cursor:pointer;">Sortir</button>
+  </div>
+</div>
+
+<div id="main">
+  <!-- Panell esquerre: els meus podcasts -->
+  <div class="side-panel">
+    <div class="list-section">
+      <h3>Els meus podcasts</h3>
+      <div id="list-custom"></div>
+    </div>
+  </div>
+
+  <!-- Centre: episodis + reproductor -->
+  <div id="player-area">
+    <div id="episodes-area">
+      <div id="episodes-placeholder">
+        <div>
+          <p style="font-size:1rem; color:#555; margin-bottom:8px;">Selecciona un podcast</p>
+          <p style="font-size:0.8rem; color:#444;">Afegeix feeds RSS amb el botó + Afegir</p>
+        </div>
+      </div>
+      <ul id="episodes-list" style="display:none"></ul>
+    </div>
+
+    <div id="player-bottom">
+      <div id="now-name">—</div>
+      <div id="now-status"></div>
+      <div id="progress-wrap" onclick="seekTo(event)">
+        <div id="progress-bar"></div>
+      </div>
+      <div id="controls-row">
+        <button id="play-stop-btn" onclick="togglePlay()" disabled>▶ Reproduir</button>
+        <div id="skip-btns">
+          <button onclick="skip(-10)">« 10s</button>
+          <button onclick="skip(10)">10s »</button>
+        </div>
+        <span id="time-display">0:00 / 0:00</span>
+        <div id="volume-wrap">
+          <span>Vol</span>
+          <input type="range" id="volume" min="0" max="1" step="0.05" value="1.0" oninput="setVolume(this.value)">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panell dret: favorits -->
+  <div class="side-panel">
+    <div class="list-section">
+      <h3>Favorits</h3>
+      <div id="list-favs"></div>
+    </div>
+  </div>
+</div>
+
+<audio id="podcast-audio" preload="none"></audio>
+
+<script>
+const audio    = document.getElementById('podcast-audio');
+const playBtn  = document.getElementById('play-stop-btn');
+const nowName  = document.getElementById('now-name');
+const nowStatus= document.getElementById('now-status');
+const progBar  = document.getElementById('progress-bar');
+const timDisp  = document.getElementById('time-display');
+const volInput = document.getElementById('volume');
+
+let currentPodcast  = null;
+let currentEpisode  = null;
+let isPlaying       = false;
+let editIndex       = null;
+
+// ── CLAUS localStorage (independents de la ràdio) ─────
+const KEY_CUSTOM = 'podcast_custom';
+const KEY_HIDDEN = 'podcast_hidden';
+const KEY_FAVS   = 'podcast_favs';
+
+function loadCustom() { try { return JSON.parse(localStorage.getItem(KEY_CUSTOM)) || []; } catch(e) { return []; } }
+function saveCustom(v) { localStorage.setItem(KEY_CUSTOM, JSON.stringify(v)); }
+function loadHidden() { try { return JSON.parse(localStorage.getItem(KEY_HIDDEN)) || []; } catch(e) { return []; } }
+function saveHidden(v) { localStorage.setItem(KEY_HIDDEN, JSON.stringify(v)); }
+function loadFavs()   { try { return JSON.parse(localStorage.getItem(KEY_FAVS))   || []; } catch(e) { return []; } }
+function saveFavs(v)  { localStorage.setItem(KEY_FAVS, JSON.stringify(v)); }
+
+// ── RENDERITZAR LLISTES ───────────────────────────────
+function renderList() {
+  const listCustom = document.getElementById('list-custom');
+  const listFavs   = document.getElementById('list-favs');
+  const hidden     = loadHidden();
+  const favs       = loadFavs();
+  const custom     = loadCustom();
+
+  listCustom.innerHTML = '';
+  listFavs.innerHTML   = '';
+
+  // Panell esquerre: només els que NO són favorits
+  custom.forEach((s, i) => {
+    if (!favs.includes(s.url)) {
+      listCustom.appendChild(makeItem(s, i, 'left', favs));
+    }
+  });
+
+  // Panell dret: favorits
+  const favPodcasts = custom.filter(s => favs.includes(s.url));
+  favPodcasts.forEach((s) => {
+    listFavs.appendChild(makeItem(s, custom.indexOf(s), 'right', favs));
+  });
+}
+
+function makeItem(s, index, side, favs) {
+  const div = document.createElement('div');
+  div.className = 'station-item' + (currentPodcast?.url === s.url ? ' active' : '');
+
+  const isFav = favs.includes(s.url);
+  const delBtn = `<button class="s-del" onclick="event.stopPropagation(); deleteStation('${s.url}')" title="Eliminar">●</button>`;
+  const favBtn = `<button class="s-fav ${isFav ? 'active' : ''}" onclick="event.stopPropagation(); toggleFav('${s.url}')" title="Favorit">★</button>`;
+  const nameSpan = `<span>${s.name}</span>`;
+
+  div.innerHTML = side === 'left'
+    ? nameSpan + favBtn + delBtn
+    : delBtn + favBtn + nameSpan;
+
+  div.onclick = () => selectPodcast(s, div);
+  return div;
+}
+
+// ── SELECCIONAR PODCAST I CARREGAR FEED ───────────────
+function selectPodcast(s, el) {
+  currentPodcast = s;
+  renderList();
+  loadFeed(s);
+}
+
+// Corregeix doble codificació (mojibake): UTF-8 llegit com Latin-1
+function fixMojibake(str) {
+  try {
+    const bytes = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) bytes[i] = str.charCodeAt(i) & 0xff;
+    const decoded = new TextDecoder('utf-8').decode(bytes);
+    // Si la decodificació conté caràcters vàlids, retorna-la
+    if (decoded && !decoded.includes('\uFFFD')) return decoded;
+  } catch(e) {}
+  return str;
+}
+
+async function fetchFeed(url) {
+  const proxies = [
+    async (u) => {
+      const res = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(u)}`);
+      if (!res.ok) throw new Error();
+      const buf = await res.arrayBuffer();
+      const peek = new TextDecoder('utf-8').decode(buf.slice(0, 200));
+      const encMatch = peek.match(/encoding="([^"]+)"/i);
+      const enc = encMatch ? encMatch[1].toLowerCase() : 'utf-8';
+      return new TextDecoder(enc === 'iso-8859-1' || enc === 'latin1' ? 'iso-8859-1' : 'utf-8').decode(buf);
+    },
+    async (u) => {
+      const res = await fetch(`https://corsproxy.io/?url=${encodeURIComponent(u)}`);
+      if (!res.ok) throw new Error();
+      const buf = await res.arrayBuffer();
+      const peek = new TextDecoder('utf-8').decode(buf.slice(0, 200));
+      const encMatch = peek.match(/encoding="([^"]+)"/i);
+      const enc = encMatch ? encMatch[1].toLowerCase() : 'utf-8';
+      return new TextDecoder(enc === 'iso-8859-1' || enc === 'latin1' ? 'iso-8859-1' : 'utf-8').decode(buf);
+    },
+    async (u) => {
+      const res = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(u)}`);
+      if (!res.ok) throw new Error();
+      return await res.text();
+    }
+  ];
+
+  for (const proxy of proxies) {
+    try {
+      let text = await proxy(url);
+      if (text && (text.includes('<rss') || text.includes('<feed') || text.includes('<channel'))) {
+        // Intentar corregir doble codificació si hi ha caràcters estranys
+        if (text.includes('Ã') || text.includes('Â')) text = fixMojibake(text);
+        return text;
+      }
+    } catch(e) { continue; }
+  }
+  throw new Error('Cap proxy ha funcionat');
+}
+
+async function loadFeed(s) {
+  const placeholder = document.getElementById('episodes-placeholder');
+  const list        = document.getElementById('episodes-list');
+
+  placeholder.style.display = 'flex';
+  placeholder.innerHTML = '<p style="color:#c8a97e; font-family:sans-serif; font-size:0.85rem; animation: pulse 1.5s infinite ease-in-out;">Carregant episodis...</p>';
+  list.style.display = 'none';
+  list.innerHTML = '';
+
+  try {
+    const xmlText = await fetchFeed(s.url);
+    const xml     = new DOMParser().parseFromString(xmlText, 'text/xml');
+    const items   = xml.querySelectorAll('item');
+
+    if (!items.length) throw new Error('Cap episodi trobat');
+
+    placeholder.style.display = 'none';
+    list.style.display = 'block';
+
+    const MAX_VISIBLE = 10;
+    let shown = 0;
+    const allEpisodes = [];
+
+    items.forEach(item => {
+      const title     = item.querySelector('title')?.textContent || 'Sense títol';
+      const enclosure = item.querySelector('enclosure');
+      const audioUrl  = enclosure?.getAttribute('url') || '';
+      const pubDate   = item.querySelector('pubDate')?.textContent || '';
+      const duration  = item.querySelector('duration')?.textContent || '';
+      if (!audioUrl) return;
+      allEpisodes.push({ title, url: audioUrl, pubDate, duration });
+    });
+
+    function renderEpisodes(limit) {
+      list.innerHTML = '';
+      allEpisodes.slice(0, limit).forEach(ep => {
+        const li = document.createElement('li');
+        li.className = 'episode-item';
+        li.innerHTML = `
+          <span class="ep-title">${ep.title}</span>
+          <span class="ep-date">${formatDate(ep.pubDate)}${ep.duration ? ' · ' + formatDuration(ep.duration) : ''}</span>
+        `;
+        li.onclick = () => selectEpisode({ title: ep.title, url: ep.url }, li);
+        list.appendChild(li);
+      });
+
+      if (allEpisodes.length > limit) {
+        const more = document.createElement('li');
+        more.style.cssText = 'padding:10px 20px; font-family:sans-serif; font-size:0.8rem; color:#666; cursor:pointer; text-align:center; border-bottom:1px solid #222;';
+        more.textContent = `Mostra més (${allEpisodes.length - limit} episodis restants)`;
+        more.onmouseenter = () => more.style.color = '#c8a97e';
+        more.onmouseleave = () => more.style.color = '#666';
+        more.onclick = () => renderEpisodes(allEpisodes.length);
+        list.appendChild(more);
+      }
+    }
+
+    renderEpisodes(MAX_VISIBLE);
+
+  } catch(e) {
+    placeholder.style.display = 'flex';
+    placeholder.innerHTML = '<p style="color:#666; font-family:sans-serif; font-size:0.82rem;">No s\'han pogut carregar els episodis.<br>Comprova la URL del feed.</p>';
+  }
+}
+
+// ── SELECCIONAR EPISODI ───────────────────────────────
+function selectEpisode(ep, el) {
+  currentEpisode = ep;
+  document.querySelectorAll('.episode-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+
+  audio.src = ep.url;
+  audio.load();
+  nowName.textContent  = ep.title;
+  nowStatus.textContent = '';
+  playBtn.disabled = false;
+  isPlaying = false;
+  playBtn.textContent = '▶ Reproduir';
+  progBar.style.width = '0%';
+  timDisp.textContent = '0:00 / 0:00';
+}
+
+// ── PLAY / PAUSA ──────────────────────────────────────
+function togglePlay() {
+  if (!currentEpisode) return;
+  if (isPlaying) {
+    audio.pause();
+    isPlaying = false;
+    playBtn.textContent = '▶ Reproduir';
+    nowStatus.textContent = 'En pausa';
+  } else {
+    audio.play().then(() => {
+      isPlaying = true;
+      playBtn.textContent = '⏸ Pausa';
+      nowStatus.textContent = 'Reproduint';
+    }).catch(() => {
+      nowStatus.textContent = 'Error de connexió';
+    });
+  }
+}
+
+function skip(sec) {
+  if (!audio.duration) return;
+  audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + sec));
+}
+
+function seekTo(e) {
+  if (!audio.duration) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration;
+}
+
+function setVolume(v) {
+  const vol = Math.round(parseFloat(v) * 100) / 100;
+  audio.volume = vol;
+  volInput.value = vol;
+}
+
+// Progrés
+audio.addEventListener('timeupdate', () => {
+  if (!audio.duration) return;
+  progBar.style.width = (audio.currentTime / audio.duration * 100) + '%';
+  timDisp.textContent = formatTime(audio.currentTime) + ' / ' + formatTime(audio.duration);
+});
+
+audio.addEventListener('ended', () => {
+  isPlaying = false;
+  playBtn.textContent = '▶ Reproduir';
+  nowStatus.textContent = 'Acabat';
+});
+
+// Teclat
+window.addEventListener('keydown', e => {
+  if (['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+  if (e.key === ' ') { e.preventDefault(); togglePlay(); }
+  if (e.key === 'ArrowRight') skip(10);
+  if (e.key === 'ArrowLeft')  skip(-10);
+  if (e.key === 'ArrowUp')    setVolume(Math.min(1, audio.volume + 0.05));
+  if (e.key === 'ArrowDown')  setVolume(Math.max(0, audio.volume - 0.05));
+});
+
+// ── FAVORITS ─────────────────────────────────────────
+function toggleFav(url) {
+  const favs = loadFavs();
+  const idx  = favs.indexOf(url);
+  if (idx === -1) favs.push(url); else favs.splice(idx, 1);
+  saveFavs(favs);
+  renderList();
+}
+
+// ── OCULTAR / RESTAURAR ───────────────────────────────
+function deleteStation(url) {
+  if (!confirm('Eliminar aquest podcast?')) return;
+  const c = loadCustom().filter(s => s.url !== url);
+  saveCustom(c);
+  // Eliminar també de favorits i ocults
+  saveFavs(loadFavs().filter(u => u !== url));
+  saveHidden(loadHidden().filter(u => u !== url));
+  renderList();
+}
+
+function hideStation(url) {
+  const h = loadHidden(); h.push(url); saveHidden(h); renderList();
+}
+function resetHidden() { saveHidden([]); renderList(); }
+
+// ── AFEGIR / EDITAR PODCAST ───────────────────────────
+function showAddDialog() {
+  editIndex = null;
+  document.getElementById('add-name').value = '';
+  document.getElementById('add-url').value = '';
+  document.getElementById('dialog-title').textContent = 'Nou podcast';
+  document.getElementById('add-dialog').style.display = 'block';
+  document.getElementById('overlay').style.display = 'block';
+}
+function hideAddDialog() {
+  document.getElementById('add-dialog').style.display = 'none';
+  document.getElementById('overlay').style.display = 'none';
+}
+
+function openGlobalEdit() {
+  const c = loadCustom();
+  if (!c.length) { alert('No hi ha podcasts per editar.'); return; }
+  const idx = c.length === 1 ? 0 : parseInt(prompt(
+    c.map((s, i) => `${i+1}. ${s.name}`).join('\n') + '\n\nQuin vols editar? (número)'
+  )) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= c.length) return;
+  editIndex = idx;
+  document.getElementById('add-name').value = c[idx].name;
+  document.getElementById('add-url').value  = c[idx].url;
+  document.getElementById('dialog-title').textContent = 'Editar podcast';
+  document.getElementById('add-dialog').style.display = 'block';
+  document.getElementById('overlay').style.display = 'block';
+}
+
+function saveStation() {
+  const n = document.getElementById('add-name').value.trim();
+  const u = document.getElementById('add-url').value.trim();
+  if (!n || !u) return;
+  const c = loadCustom();
+  if (editIndex !== null) c[editIndex] = { name: n, url: u };
+  else c.push({ name: n, url: u });
+  saveCustom(c);
+  renderList();
+  hideAddDialog();
+}
+
+// ── EXPORT / IMPORT CSV ───────────────────────────────
+function toggleIOMenu() {
+  const menu = document.getElementById('io-menu');
+  const btn  = document.getElementById('io-btn');
+  if (menu.style.display === 'none') {
+    const rect = btn.getBoundingClientRect();
+    menu.style.top  = (rect.bottom + 4) + 'px';
+    menu.style.left = rect.left + 'px';
+    menu.style.display = 'flex';
+  } else {
+    menu.style.display = 'none';
+  }
+}
+document.addEventListener('click', e => {
+  const menu = document.getElementById('io-menu');
+  const btn  = document.getElementById('io-btn');
+  if (menu.style.display !== 'none' && !menu.contains(e.target) && e.target !== btn) {
+    menu.style.display = 'none';
+  }
+});
+
+function exportCSV() {
+  const c = loadCustom();
+  let csv = 'nom,url\n';
+  c.forEach(s => { csv += `"${s.name}","${s.url}"\n`; });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
+  a.download = 'podcasts.csv';
+  a.click();
+}
+
+function importCSV(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split('\n').filter(l => l.trim());
+    const start = lines[0].toLowerCase().includes('nom') ? 1 : 0;
+    const c = loadCustom();
+    let added = 0;
+    lines.slice(start).forEach(line => {
+      const parts = line.match(/"([^"]*)"/g);
+      if (!parts || parts.length < 2) return;
+      const name = parts[0].replace(/"/g, '').trim();
+      const url  = parts[1].replace(/"/g, '').trim();
+      if (name && url && !c.some(s => s.url === url)) { c.push({ name, url }); added++; }
+    });
+    saveCustom(c);
+    renderList();
+    alert(`Importats ${added} podcasts nous.`);
+  };
+  reader.readAsText(file, 'UTF-8');
+  input.value = '';
+}
+
+// ── TEMA I PANTALLA COMPLETA ──────────────────────────
+function toggleTheme() {
+  const l = document.body.classList.toggle('light');
+  document.getElementById('theme-btn').textContent = l ? '🌙' : '☀';
+}
+function toggleFullscreen() {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+}
+
+// ── HELPERS ───────────────────────────────────────────
+function formatTime(sec) {
+  if (!sec || isNaN(sec)) return '0:00';
+  const h = Math.floor(sec / 3600);
+  const m = Math.floor((sec % 3600) / 60);
+  const s = Math.floor(sec % 60);
+  if (h > 0) return `${h}:${pad(m)}:${pad(s)}`;
+  return `${m}:${pad(s)}`;
+}
+function pad(n) { return n < 10 ? '0' + n : n; }
+
+function formatDate(str) {
+  if (!str) return '';
+  try {
+    const d = new Date(str);
+    return d.toLocaleDateString('ca-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+  } catch(e) { return ''; }
+}
+
+function formatDuration(str) {
+  if (!str) return '';
+  // Pot venir com HH:MM:SS o en segons
+  if (str.includes(':')) return str;
+  const s = parseInt(str);
+  if (isNaN(s)) return str;
+  return formatTime(s);
+}
+
+// ── SERVICE WORKER ────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+
+renderList();
+</script>
+</body>
+</html>
