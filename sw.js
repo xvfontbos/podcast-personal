@@ -1,4 +1,4 @@
-const CACHE = 'podcast-v1';
+const CACHE = 'podcast-v2';
 const FILES = ['./index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
